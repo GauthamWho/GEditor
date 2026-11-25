@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+projects/*
+!projects/.gitkeep
+Inbox/*
+!Inbox/put-your-videos-here.txt
+ffmpeg-full/

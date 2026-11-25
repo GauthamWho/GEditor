@@ -1,0 +1,272 @@
+<!doctype html><html><head><meta charset="utf-8"><title>take</title>
+<!-- GEditor TAKE page (take_api.py copies it into every take folder as reel.html). Same contract as every kit:
+     window.at(ms) + window.TOTAL. Framing maths = take_api.window() so the preview and the video file match.
+     ?caponly=1&ow=&oh= draws only the caption layer on a transparent page (the export's caption frames). -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Inter+Tight:wght@800&family=DM+Serif+Display&family=Caveat:wght@700&family=Instrument+Serif:ital@1&family=Anton&family=Montserrat:wght@800;900&family=Poppins:wght@700;800&family=Bebas+Neue&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;overflow:hidden;background:transparent}
+#stage{position:relative;overflow:hidden;background:#000}
+body.cap #stage{background:transparent}
+#v{position:absolute;left:0;top:0;transform-origin:0 0;object-fit:fill}
+#caps{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#caps .grp{pointer-events:auto;cursor:pointer}
+#caps .grp.picked{outline:3px dashed #ffd27a;outline-offset:10px}
+body.cap #caps .grp.picked{outline:none}
+.grp{position:absolute;display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;transform:translateY(-50%)}
+.grp i{font-style:normal;display:inline-block;position:relative;white-space:pre}
+.grp i b{position:absolute;left:-2px;right:-2px;bottom:-6px;height:6px;border-radius:3px;transform-origin:0 50%}
+#safe{position:absolute;inset:0;pointer-events:none;display:none}
+#safe div{position:absolute}
+#safe .lab{color:#fff;font:700 26px monospace;text-shadow:0 0 6px #000}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:600 44px Inter,sans-serif;text-align:center;padding:80px;box-sizing:border-box}
+</style></head><body>
+<div id="stage"><div id="pic" style="position:absolute;inset:0;overflow:hidden"><video id="v" playsinline preload="auto"></video><canvas id="cv" style="position:absolute;left:0;top:0;transform-origin:0 0;display:none"></canvas></div><video id="mv" playsinline muted preload="auto" style="display:none"></video><div id="caps"></div><div id="safe"></div><div id="msg">Opening your take…</div></div>
+<script>
+(function () {
+  const Q = new URLSearchParams(location.search), CAP = Q.get('caponly') === '1', FPS = 30;
+  if (CAP) document.body.classList.add('cap');
+  const $ = s => document.querySelector(s), V = $('#v'), ST = $('#stage'), CAPS = $('#caps');
+  let TK = null, OW = 1080, OH = 1920, starts = [], groups = [], lastT = -1, lastWall = 0, lastBlock = -1, wantPlay = false;
+  window.TOTAL = 0; window.CAPREADY = false;
+
+  /* ---------- maths shared with take_api.py ---------- */
+  function interp(t, T, Vv) {
+    if (t <= T[0]) return Vv[0]; if (t >= T[T.length - 1]) return Vv[Vv.length - 1];
+    let lo = 0, hi = T.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T[m] <= t) lo = m; else hi = m; }
+    const f = (t - T[lo]) / ((T[hi] - T[lo]) || 1); return Vv[lo] + (Vv[hi] - Vv[lo]) * f;
+  }
+  const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+  function zoomAt(b, t) {   // = take_api.zoom_at (chat 9): start zoom -> end zoom over the clip; auto zooms off = 1 unless set by hand
+    if (TK.settings.zooms === false && b.zoomBy !== 'hand') return 1;
+    const z0 = +(b.zoom || 1), z1 = b.zoomTo == null ? z0 : +b.zoomTo; if (Math.abs(z1 - z0) < 1e-4) return z0;
+    const L = Math.max(b.out - b.in, 1e-3), e = +(b.ease || 0); let p = clamp((t - b.in) / (e > 0 ? Math.min(e, L) : L), 0, 1);
+    if (e > 0) p = p * p * (3 - 2 * p); return z0 + (z1 - z0) * p;
+  }
+  function win(b, srcT) {
+    const W = TK.info.w, H = TK.info.h, st = TK.settings, E = TK.eyes, s0 = Math.max(OW / W, OH / H), lock = !!st.eyelock;
+    const z = zoomAt(b, srcT) * (lock ? (st.lockZoom || 1.12) : 1);
+    let s = s0 * z;
+    let ex = interp(srcT, E.t, E.x) * W, ey = interp(srcT, E.t, E.y) * H, px, py;
+    if (lock) { px = OW * 0.5; py = OH * (st.lockY ?? autoY()); s = Math.min(Math.max(s, lockNeed(b, px, py, W, H)), s0 * Math.max(z, 1.8)); }   // eyelock.py: the smallest zoom that keeps the eyes pinned for the whole block (max 1.8x)
+    else {
+      const mid = (b.in + b.out) / 2, exm = interp(mid, E.t, E.x) * W, eym = interp(mid, E.t, E.y) * H;
+      const x1 = clamp(exm - OW / s0 / 2, 0, W - OW / s0), y1 = clamp(eym - OH / s0 * 0.4, 0, H - OH / s0);
+      px = (exm - x1) * s0; py = (eym - y1) * s0; ex = exm; ey = eym;
+    }
+    const vw = OW / s, vh = OH / s;
+    return [clamp(ex - px / s, 0, W - vw), clamp(ey - py / s, 0, H - vh), s];
+  }
+  function autoY() {   // eyelock.py: pin the eyes where they naturally sit (median), kept inside the main area
+    const W = TK.info.w, H = TK.info.h, s0 = Math.max(OW / W, OH / H), ys = TK.eyes.y.slice().sort((a, b) => a - b), m = ys[ys.length >> 1] ?? 0.36;
+    return clamp((OH / 2 + (m * H - H / 2) * s0 * (TK.settings.lockZoom || 1.12)) / OH, 0.25, 0.6);
+  }
+  window.takeAutoY = () => TK ? autoY() : 0.36;
+  const NEED = new Map();
+  function lockNeed(b, px, py, W, H) {
+    const key = b.in + '|' + b.out + '|' + px + '|' + py + '|' + OW + '|' + OH; if (NEED.has(key)) return NEED.get(key);
+    const E = TK.eyes; let need = 0;
+    for (let tt = b.in; tt <= b.out + 1e-6; tt += 0.25) {
+      const ex = interp(Math.min(tt, b.out), E.t, E.x) * W, ey = interp(Math.min(tt, b.out), E.t, E.y) * H;
+      need = Math.max(need, px / Math.max(ex, 1), (OW - px) / Math.max(W - ex, 1), py / Math.max(ey, 1), (OH - py) / Math.max(H - ey, 1));
+    }
+    NEED.set(key, need); return need;
+  }
+  const q = x => Math.round(x * FPS) / FPS;
+  const SP = b => +(b.speed || 1), dur = b => q((b.out - b.in) / SP(b));   // speed (chat 8): a 2x clip is half as long
+  window.GEFX_CLIPS = () => TK ? TK.blocks.map((b, i) => ({ id: b.id, t0: starts[i], t1: starts[i] + dur(b) })) : [];
+
+  /* ---------- timeline: blocks one after another ---------- */
+  function layout() {
+    starts = []; let acc = 0; TK.blocks.forEach(b => { starts.push(acc); acc += dur(b); });
+    window.TOTAL = Math.max(acc, 1 / FPS);
+    // words -> timeline (a word inside a cut-out part is dropped, like the sound)
+    const tw = [];
+    (TK.words || []).forEach(w => { const m = (w.s + w.e) / 2; const i = TK.blocks.findIndex(b => m >= b.in && m < b.out); if (i < 0) return; const b = TK.blocks[i]; tw.push({ w: w.w, s: w.s, t: starts[i] + Math.max(0, w.s - b.in) / SP(b), e: starts[i] + Math.min(dur(b), (w.e - b.in) / SP(b)) }); });
+    tw.sort((a, b) => a.t - b.t);
+    groups = []; const look = (TK.settings.caption || {}).look || 'gw-signal', max = look === 'sky' ? 3 : 4;
+    let g = null;
+    tw.forEach((w, k) => {
+      const prev = tw[k - 1], txt = (g ? g.words.map(x => x.w).join(' ') + ' ' : '') + w.w;
+      const brk = !g || g.words.length >= max || (w.t - prev.e) > 10 / FPS || /[.?!]$/.test(prev.w) || (look === 'sky' && txt.length > 16);
+      if (brk) { g = { words: [] }; groups.push(g); } g.words.push(w);
+    });
+    // his own changes to one caption (L506): words, colour, size, font, height, look, hidden. Key = first word's source time
+    const ED = TK.capEdits || {};
+    groups.forEach(g => {
+      g.key = g.words[0].s.toFixed(2); g.ov = ED[g.key] || {};
+      const txt = (g.ov.text || '').trim();
+      if (txt) {   // new words: spread over the same time the old words took
+        const a = g.words[0].t, z = g.words[g.words.length - 1].e, nw = txt.split(/\s+/), d = Math.max(0.05, (z - a) / nw.length);
+        g.words = nw.map((w, k) => ({ w, s: g.words[0].s, t: a + k * d, e: a + (k + 1) * d }));
+      }
+    });
+    groups.forEach((g, i) => { g.t0 = g.words[0].t - 3 / FPS; const end = g.words[g.words.length - 1].e; const nx = groups[i + 1]; g.t1 = nx ? Math.min(nx.words[0].t - 3 / FPS, end + 1.2) : end + 0.6; g.end = end;
+      const L = g.words.map(w => w.w.replace(/[^\w']/g, '')); let best = -1, bl = 4; L.forEach((x, j) => { if (x.length > bl) { bl = x.length; best = j; } }); g.stress = best; });
+    window.BEATS = { beats: groups.map(g => ({ t0: Math.max(0, g.t0), dur: Math.max(0.1, g.t1 - g.t0), line: g.words.map(w => w.w).join(' '), key: g.key, hide: !!g.ov.hide, edited: Object.keys(g.ov).length > 0 })) };
+  }
+  function blockAt(T) { let i = 0; while (i + 1 < starts.length && starts[i + 1] <= T + 1e-6) i++; return i; }
+
+  /* ---------- caption looks (his pick L493: GauthamWho Word build, Blueprint, SKY) ---------- */
+  const BRAND = {
+    'gw-signal': { color: '#FFFFFF', stress: '#FFD400', shadow: '0 4px 14px rgba(11,11,12,.6), 0 1px 2px rgba(11,11,12,.7)' },
+    'gw-paper': { color: '#0B0B0C', stress: '#0B45E6', shadow: '0 2px 10px rgba(255,255,255,.55)' },
+    'gw-mono': { color: '#FFFFFF', stress: '#5B8BFF', shadow: '0 4px 14px rgba(0,0,0,.7)' },
+  };
+  const bez = (x1, y1, x2, y2) => p => { let a = 0, b = 1, t = p; for (let i = 0; i < 24; i++) { t = (a + b) / 2; const x = 3 * x1 * t * (1 - t) ** 2 + 3 * x2 * t * t * (1 - t) + t ** 3; if (x < p) a = t; else b = t; } return 3 * y1 * t * (1 - t) ** 2 + 3 * y2 * t * t * (1 - t) + t ** 3; };
+  const EXPO = bez(0.16, 1, 0.3, 1), INOUT = bez(0.42, 0, 0.58, 1);
+  const prog = (T, t0, d, ease) => { const p = clamp((T - t0) / d, 0, 1); return ease ? ease(p) : p; };
+  function capState(T) {
+    const c = TK.settings.caption || {}; if (!c.on) return null;
+    const gi = groups.findIndex(g => T >= g.t0 && T < g.t1); if (gi < 0) return null;
+    const g = groups[gi]; if (g.ov.hide) return null; const look = g.ov.look || c.look || 'gw-signal', W = g.words;
+    let ps, fade = 1;
+    if (look === 'bp') ps = W.map(w => [prog(T, w.t, 0.2, EXPO), prog(T, w.t + 0.18, 0.32, INOUT)]);
+    else if (look === 'sky') { const p = prog(T, g.t0, 6 / FPS, EXPO); ps = W.map(() => [p]); }
+    else ps = W.map(w => [prog(T, w.t - 1 / FPS, 9 / FPS, EXPO)]);
+    if (look === 'bp') fade = prog(T, g.t0, 0.4, EXPO);
+    if (!groups[gi + 1] || groups[gi + 1].t0 > g.end + 0.5) fade = Math.min(fade, 1 - prog(T, g.t1 - 8 / FPS, 8 / FPS));
+    return { gi, look, ps, fade };
+  }
+  window.capKey = ms => { if (!TK) return ''; const s = capState(ms / 1000); return s ? s.gi + '|' + s.look + '|' + Math.round(s.fade * 60) + '|' + s.ps.map(a => a.map(v => Math.round(v * 60)).join(',')).join(';') : '-'; };
+  let drawnG = -1, drawnLook = '', PICK = '';
+  window.takeCapPicked = k => { PICK = k || ''; drawnG = -1; window.at(Math.max(0, lastT) * 1000); };
+  function drawCaps(T) {
+    const s = capState(T);
+    if (!s) { CAPS.innerHTML = ''; drawnG = -1; return; }
+    const g = groups[s.gi], c = Object.assign({}, TK.settings.caption, g.ov), k = Math.min(OW, OH) / 1080, wide = OW > OH;
+    if (drawnG !== s.gi || drawnLook !== JSON.stringify(c) + PICK) {
+      drawnG = s.gi; drawnLook = JSON.stringify(c) + PICK; CAPS.innerHTML = '';
+      const box = document.createElement('div'); box.className = 'grp' + (PICK === g.key ? ' picked' : '');
+      box.onpointerdown = e => { e.stopPropagation(); try { parent.takeCapPick && parent.takeCapPick(g.key); } catch (er) {} }; const bw = (wide ? 0.7 : 880 / 1080) * OW;
+      box.style.left = (OW - bw) / 2 + 'px'; box.style.width = bw + 'px'; box.style.top = (c.y ?? (wide ? 0.8 : 0.703)) * OH + 'px';
+      const txt = g.words.map(w => w.w).join(' '), sz = c.size || 1, look = s.look;
+      g.words.forEach((w, j) => {
+        const e = document.createElement('i'), st = j === g.stress; let word = w.w;
+        if (look === 'bp') {
+          e.style.cssText = `font:400 ${58 * k * sz}px/1.05 ${c.font ? `'${c.font}',` : ''}'DM Serif Display',Georgia,serif;color:${c.color || '#fff'};text-shadow:0 3px 12px rgba(0,0,0,.75),0 1px 2px rgba(0,0,0,.6);margin:0 ${7 * k}px`;
+          if (st) { e.style.font = `700 ${80 * k * sz}px/.8 Caveat,cursive`; e.style.color = c.stress || '#f3e6cf'; const u = document.createElement('b'); u.style.background = '#a3150a'; e.textContent = word; e.append(u); box.append(e); return; }
+        } else if (look === 'sky') {
+          word = word.toLowerCase();
+          if (st) e.style.cssText = `font:italic 400 ${104 * k * sz}px/1 ${c.font ? `'${c.font}',` : ''}'Instrument Serif',serif;color:${c.stress || '#3B9CF6'};margin:0 ${10 * k}px`;
+          else e.style.cssText = `font:700 ${97 * k * sz}px/1 ${c.font ? `'${c.font}',` : ''}Inter,sans-serif;letter-spacing:-0.02em;color:${c.color || '#F4F7FD'};text-shadow:0 3px 10px rgba(0,0,0,.55);margin:0 ${10 * k}px`;
+        } else {   // GauthamWho Word build (CAPTION-LIBRARY Style 2) in his brand colours
+          const B = BRAND[look] || BRAND['gw-signal'], fs = Math.min(76, 860 / (Math.max(1, txt.length) * 0.56)) * k * sz * (wide ? 1 : 1.12);
+          word = word.toUpperCase();
+          e.style.cssText = `font:900 ${fs}px/1.05 ${c.font ? `'${c.font}',` : ''}Inter,sans-serif;letter-spacing:-0.025em;color:${st ? (c.stress || B.stress) : (c.color || B.color)};text-shadow:${B.shadow};margin:0 ${8 * k}px`;
+        }
+        e.textContent = word; box.append(e);
+      });
+      CAPS.append(box);
+    }
+    const box = CAPS.firstChild; if (!box) return;
+    box.style.opacity = s.fade;
+    [...box.children].forEach((e, j) => {
+      const p = s.ps[j][0];
+      if (s.look === 'bp') { e.style.opacity = p; e.style.transform = `translateY(${(1 - p) * 10}px)`; const u = e.querySelector('b'); if (u) u.style.transform = `scaleX(${s.ps[j][1]})`; }
+      else if (s.look === 'sky') { e.style.opacity = p; e.style.filter = `blur(${(1 - p) * 12}px)`; e.style.transform = `scale(${1.04 - 0.04 * p})`; }
+      else { e.style.opacity = p; e.style.filter = p < 1 ? `blur(${(1 - p) * 10}px)` : 'none'; e.style.transform = `translateY(${(1 - p) * 22}px)`; }
+    });
+  }
+
+  /* ---------- safe-zone layer (IG_REELS from Common/motion/safezone.tsx; never in the video file) ---------- */
+  function drawSafe() {
+    const el = $('#safe'); el.style.display = TK.settings.safe && !CAP ? 'block' : 'none'; if (!TK.settings.safe) return;
+    const red = 'rgba(224,40,40,.28)';
+    if (OH > OW) { const t = 250 / 1920 * OH, b = 1490 / 1920 * OH, l = 60 / 1080 * OW, r = 940 / 1080 * OW;
+      el.innerHTML = `<div style="left:0;right:0;top:0;height:${t}px;background:${red}"></div><div style="left:0;right:0;top:${b}px;bottom:0;background:${red}"></div><div style="left:0;top:${t}px;width:${l}px;height:${b - t}px;background:${red}"></div><div style="left:${r}px;right:0;top:${t}px;height:${b - t}px;background:${red}"></div><div style="left:${l}px;top:${t}px;width:${r - l}px;height:${b - t}px;outline:4px dashed #FFC53D"></div><div class="lab" style="left:20px;top:${t - 40}px">Instagram Reels · header</div><div class="lab" style="right:10px;top:${OH / 2}px;writing-mode:vertical-rl">like · comment · share</div><div class="lab" style="left:20px;top:${b + 20}px">username · caption · audio</div>`; }
+    else { const m = 0.05; el.innerHTML = `<div style="left:${OW * m}px;top:${OH * m}px;width:${OW * (1 - 2 * m)}px;height:${OH * (1 - 2 * m)}px;outline:4px dashed #FFC53D"></div><div class="lab" style="left:${OW * m + 10}px;top:${OH * m + 10}px">16:9 · keep words inside</div>`; }
+  }
+
+  /* ---------- size ---------- */
+  function setSize() {
+    const sz = Q.get('ow') ? [+Q.get('ow'), +Q.get('oh')] : (TK.settings.aspect === '16:9' ? [1920, 1080] : [1080, 1920]);
+    [OW, OH] = sz; ST.style.width = OW + 'px'; ST.style.height = OH + 'px';
+    V.style.width = TK.info.w + 'px'; V.style.height = TK.info.h + 'px';
+    window.STAGE = { w: OW, h: OH };
+  }
+
+  /* ---------- draw one moment ---------- */
+  function frameAt(T) {
+    const i = blockAt(T), b = TK.blocks[i]; if (!b) return null;
+    const srcT = b.in + (T - starts[i]) * SP(b), [x0, y0, s] = win(b, srcT), st = TK.settings;
+    if (V.playbackRate !== SP(b)) { V.playbackRate = SP(b); V.preservesPitch = true; }
+    V.volume = Math.min(1, Math.pow(10, (+b.gain || 0) / 20));
+    V.style.transform = `translate(${-x0 * s}px,${-y0 * s}px) scale(${s})`;
+    V.style.visibility = st.hideVideo || b.hide ? 'hidden' : 'visible';      // hidden = black, like the video file (L506)
+    V.muted = !!(st.muteVoice || b.mute || forcedMute);
+    bgFrame(b, x0, y0, s);
+    return { i, srcT };
+  }
+  /* ---------- Hide background (chat 9, L534): his cut-out mask turns the background see-through ---------- */
+  const CV = $('#cv'), MV = $('#mv'), PIC = $('#pic'); let bgOn = false, cx = null, mx = null, mc = null, CO = { v: 0 };
+  const CHECK = 'repeating-conic-gradient(#2a2a2a 0 25%, #3a3a3a 0 50%) 0 0/48px 48px';
+  function bgColor() { const c = TK.settings.bgColor || 'clear'; return c === 'clear' ? CHECK : c; }
+  function bgFrame(b, x0, y0, s) {
+    const on = !!(b.bg === 'hide' && CO.v && !(TK.settings.hideVideo || b.hide));
+    if (on !== bgOn) { bgOn = on; CV.style.display = on ? 'block' : 'none'; V.style.opacity = on ? '0' : '1'; PIC.style.background = on ? bgColor() : ''; if (on) loopBg(); else MV.pause(); }
+    if (on) { PIC.style.background = bgColor(); CV.style.width = TK.info.w + 'px'; CV.style.height = TK.info.h + 'px'; CV.style.transform = V.style.transform; }
+  }
+  function drawBg() {
+    if (!bgOn || V.readyState < 2) return;
+    const w = V.videoWidth, h = V.videoHeight; if (!w) return;
+    if (CV.width !== w || CV.height !== h) { CV.width = w; CV.height = h; cx = CV.getContext('2d', { willReadFrequently: true }); mc = document.createElement('canvas'); mc.width = w; mc.height = h; mx = mc.getContext('2d', { willReadFrequently: true }); }
+    if (Math.abs(MV.currentTime - V.currentTime) > (V.paused ? 0.5 / FPS : 0.12)) MV.currentTime = V.currentTime;
+    if (!V.paused && MV.paused) { MV.playbackRate = V.playbackRate; MV.play().catch(() => {}); } else if (V.paused && !MV.paused) MV.pause();
+    cx.drawImage(V, 0, 0, w, h); if (MV.readyState >= 2) mx.drawImage(MV, 0, 0, w, h); else return;
+    const a = cx.getImageData(0, 0, w, h), m = mx.getImageData(0, 0, w, h), A = a.data, M = m.data;
+    for (let i = 3; i < A.length; i += 4) A[i] = M[i - 3];
+    cx.putImageData(a, 0, 0);
+  }
+  function loopBg() { if (!bgOn) return; drawBg(); requestAnimationFrame(loopBg); }
+  MV.addEventListener('seeked', drawBg); V.addEventListener('seeked', () => setTimeout(drawBg, 0));
+  async function loadMask() {
+    try { const j = await (await fetch('/api/cutout/info', { cache: 'no-store' })).json(); if (j && j.proxy && j.v !== CO.v) { CO = j; MV.src = 'cutout/mask_proxy.mp4?v=' + j.v; await new Promise(r => { MV.onloadeddata = r; setTimeout(r, 6000); }); } }
+    catch (e) {}
+  }
+  window.takeMaskReload = async () => { await loadMask(); bgOn = null; window.at(Math.max(0, lastT) * 1000); };
+  function seekV(t) { return new Promise(res => { if (Math.abs(V.currentTime - t) < 0.4 / FPS && V.readyState >= 2) return res(); let done = false; const fin = () => { if (!done) { done = true; V.removeEventListener('seeked', fin); res(); } }; V.addEventListener('seeked', fin); setTimeout(fin, 2500); V.currentTime = t; }); }
+  window.at = function (ms) {
+    if (!TK) return;
+    const T = clamp(ms / 1000, 0, window.TOTAL - 1e-4), now = performance.now();
+    drawCaps(T);
+    if (CAP) return;
+    const f = frameAt(T); if (!f) return;
+    const adv = T - lastT, wall = (now - lastWall) / 1000, live = PLAY || (adv > 0 && adv < 0.25 && wall < 0.25 && Math.abs(adv - wall) < 0.12);
+    lastT = T; lastWall = now; const jumped = f.i !== lastBlock; lastBlock = f.i;
+    if (live) {   // the editor is playing: let the video run, correct only on a cut or drift
+      wantPlay = true;
+      if (V.paused) { V.currentTime = f.srcT; V.play().catch(() => { forcedMute = V.muted = true; V.play().catch(() => {}); }); }
+      else if (jumped || Math.abs(V.currentTime - f.srcT) > 0.15) V.currentTime = f.srcT;
+      return;
+    }
+    wantPlay = false; if (!V.paused) V.pause();
+    return seekV(f.srcT);
+  };
+  let PLAY = false, forcedMute = false;   // the editor says when it plays (take_ui.js wraps play()); the guess above stays for other callers
+  window.takePlaying = on => { PLAY = !!on; if (!on) { wantPlay = false; V.pause(); } };
+  setInterval(() => { if (!PLAY && wantPlay && performance.now() - lastWall > 300) { wantPlay = false; V.pause(); } }, 150);   // editor stopped
+
+  /* ---------- live changes from the editor (blocks, eye-lock, captions, safe zone) ---------- */
+  window.takeSet = function (tk) {
+    const aspectChanged = !TK || tk.settings.aspect !== TK.settings.aspect;
+    TK = JSON.parse(JSON.stringify(tk)); layout(); if (aspectChanged) setSize(); drawSafe(); drawnG = -1;
+    if (window.GEFX) window.GEFX.set(TK.fx || null);
+    window.at(Math.max(0, lastT) * 1000);
+  };
+  (async function boot() {
+    try {
+      const r = await fetch('/api/take/info', { cache: 'no-store' }); TK = await r.json();
+      if (!TK || !TK.blocks) { $('#msg').textContent = 'This take is still being prepared…'; setTimeout(boot, 3000); return; }
+      setSize(); layout(); drawSafe(); $('#msg').remove(); if (window.GEFX) window.GEFX.set(TK.fx || null);
+      if (!CAP) { V.src = TK.proxy + '?v=' + (TK.auto && TK.auto.made || ''); await new Promise(res => { V.onloadeddata = res; setTimeout(res, 8000); }); await loadMask(); }
+      else V.remove();
+      // every caption font loaded up front: a font first used mid-video would be invisible for a moment (font-display block)
+      await Promise.all(['900 40px Inter', '700 40px Inter', '800 40px "Inter Tight"', '40px "DM Serif Display"', '700 40px Caveat', 'italic 40px "Instrument Serif"',
+        '40px Anton', '900 40px Montserrat', '800 40px Poppins', '40px "Bebas Neue"'].map(f => document.fonts.load(f).catch(() => null)));
+      await document.fonts.ready; window.CAPREADY = true;
+      const t0 = +(Q.get('at') || 0); window.at(t0 * 1000);
+    } catch (e) { $('#msg').textContent = 'Could not open the take: ' + e; }
+  })();
+})();
+</script></body></html>

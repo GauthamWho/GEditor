@@ -1,0 +1,14 @@
+{
+ "name": "take",
+ "type": "take",
+ "title": "My take (Auto Edit)",
+ "reelsRoot": "projects/take",
+ "reelFile": "reel.html",
+ "pieceSelector": "[data-take-none]",
+ "cameraSelectors": [],
+ "captionSelectors": [],
+ "themeScript": "",
+ "themesDir": "",
+ "sounds": "none",
+ "defaultReel": ""
+}

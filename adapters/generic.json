@@ -1,0 +1,13 @@
+{
+ "name": "generic",
+ "title": "Any kit (demo page)",
+ "reelsRoot": "samples",
+ "reelFile": "reel.html",
+ "pieceSelector": "[data-edit]",
+ "cameraSelectors": [],
+ "captionSelectors": [],
+ "themeScript": "",
+ "themesDir": "",
+ "sounds": "none",
+ "defaultReel": "demo"
+}

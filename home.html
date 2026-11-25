@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GEditor · Projects</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%231c1916%22/%3E%3Cpath%20d%3D%22M47%2022A18%2018%200%201%200%2050%2034H35%22%20fill%3D%22none%22%20stroke%3D%22%23ffd27a%22%20stroke-width%3D%227%22%20stroke-linecap%3D%22round%22/%3E%3Crect%20x%3D%2229%22%20y%3D%2228%22%20width%3D%2211%22%20height%3D%2211%22%20transform%3D%22rotate%2845%2034.5%2033.5%29%22%20fill%3D%22%23ff3b6b%22/%3E%3C/svg%3E">
+<style>
+/* GEditor Projects page (chat 8, LEDGER L513-L519): shaped like Instagram Edits' projects page, in GEditor's own colours */
+:root{--bg:#141210;--panel:#1d1a17;--p2:#27231f;--p3:#322d27;--line:#3a352f;--ink:#f3e6cf;--soft:#b3a893;--gold:#ffd27a;--red:#c4251a;--red2:#ff6b5a;--ok:#7bd389}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,Segoe UI,sans-serif}
+button,input,select{font:inherit;color:inherit}
+header{display:flex;align-items:center;gap:12px;padding:18px 28px 10px;position:sticky;top:0;z-index:5;background:linear-gradient(var(--bg) 80%,#14121000);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:8px;font:400 22px Georgia,serif}.logo i{color:var(--red2)}
+h1{font:700 26px system-ui;margin:0 0 0 14px;letter-spacing:-.01em}
+.sp{flex:1}
+.pill{display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:3px}
+.ib{background:none;border:0;border-radius:18px;padding:7px 12px;cursor:pointer;color:var(--soft);white-space:nowrap}.ib:hover{background:var(--p3);color:var(--ink)}.ib.on{background:var(--p3);color:var(--gold)}
+#q{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:8px 14px;width:230px;outline:none}#q:focus{border-color:var(--gold)}
+main{padding:8px 28px 120px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 18px}.chips button{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;color:var(--soft)}
+.chips button.on{background:#3d3220;border-color:var(--gold);color:#ffe7b0}
+h2{font:600 12px Consolas,monospace;letter-spacing:.14em;color:#ff8a7a;margin:26px 0 12px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,190px),1fr));gap:22px 18px}
+.list .grid{grid-template-columns:1fr;gap:6px}
+.card{cursor:pointer;position:relative;outline:none}
+.pic{aspect-ratio:1/1;border-radius:14px;background:#0e0d0c center/cover no-repeat;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#6d6458;font:600 13px Consolas,monospace;text-align:center;padding:10px;transition:transform .15s,border-color .15s;overflow:hidden}
+.card:hover .pic,.card:focus .pic{transform:translateY(-3px);border-color:var(--gold)}
+.meta{text-align:center;padding:9px 4px 0}.meta b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta span{display:block;color:var(--soft);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .card{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px}
+.list .pic{width:56px;height:56px;border-radius:8px;flex:none;padding:0;font-size:9px}.list .meta{text-align:left;padding:0;display:flex;gap:16px;align-items:center;flex:1}.list .meta b{min-width:220px}
+.badge{position:absolute;top:8px;left:8px;background:var(--red);color:#fff;font:600 11px system-ui;padding:3px 8px;border-radius:12px;z-index:1}
+.kit{position:absolute;top:8px;right:8px;background:#000b;color:var(--soft);font:600 10px system-ui;padding:3px 7px;border-radius:10px;z-index:1}
+.list .badge,.list .kit{display:none}
+.hint{color:var(--soft)}
+#new{position:fixed;right:28px;bottom:26px;display:flex;align-items:center;gap:10px;background:var(--ink);color:#141210;border:0;border-radius:30px;padding:14px 24px;font:700 16px system-ui;cursor:pointer;box-shadow:0 10px 30px #0009;z-index:6}
+#new:hover{background:#fff}#new b{font-size:22px;line-height:0}
+#ctx{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;min-width:200px;box-shadow:0 14px 40px #000a}
+#ctx button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 12px;border-radius:7px;cursor:pointer}#ctx button:hover{background:var(--p3)}#ctx button.bad{color:var(--red2)}#ctx button:disabled{opacity:.4;cursor:default}
+/* New project dialog */
+#dlg{position:fixed;inset:0;background:#000a;z-index:40;display:none;align-items:center;justify-content:center;padding:16px}
+#dlg.on{display:flex}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:min(640px,100%);max-height:92vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 80px #000}
+.box h2.dh{margin:0 0 4px;font:700 20px system-ui;color:var(--ink);letter-spacing:0;text-transform:none}
+.step{display:none}.step.on{display:block}
+#drop{border:2px dashed #5a5045;border-radius:14px;padding:28px 16px;text-align:center;margin:14px 0;cursor:pointer;transition:.15s}
+#drop.over{border-color:var(--gold);background:#2a2418}
+#drop b{display:block;font-size:16px;margin-bottom:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer}.btn:hover{background:var(--p3)}
+.btn.pri{background:var(--red);border-color:var(--red2);color:#fff;font-weight:700}.btn.pri:hover{background:#d9382c}.btn:disabled{opacity:.4;cursor:default}
+.inbox{max-height:220px;overflow:auto;margin-top:8px}
+.inbox button{display:flex;justify-content:space-between;width:100%;text-align:left;background:var(--p2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin:5px 0;cursor:pointer}.inbox button:hover{border-color:var(--gold)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 16px}@media(max-width:520px){.opts{grid-template-columns:1fr}}
+.opt{background:var(--p2);border:2px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left}.opt b{display:block;font-size:15px;margin-bottom:3px}.opt span{color:var(--soft);font-size:13px}
+.opt.on{border-color:var(--gold);background:#2d2619}
+.tick{display:flex;gap:10px;align-items:flex-start;padding:7px 4px;cursor:pointer;font-size:13px;color:var(--soft)}.tick b{display:block;color:var(--ink,#fff);font-size:14px}.tick input{margin-top:3px;width:17px;height:17px;accent-color:var(--gold);flex:none}
+.shape{display:inline-block;border:2px solid currentColor;border-radius:3px;margin-right:8px;vertical-align:middle}
+label.f{display:block;margin:6px 0 4px;color:var(--soft);font-size:13px}
+.txt{width:100%;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}.txt:focus{border-color:var(--gold)}
+.bar{height:8px;background:#0e0d0c;border-radius:4px;overflow:hidden;margin:12px 0 6px}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--gold));transition:width .3s}
+.picked{background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:flex;justify-content:space-between;gap:8px}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#000d;border:1px solid var(--line);padding:10px 18px;border-radius:10px;display:none;z-index:60}
+@media(max-width:640px){header{padding:14px 16px 8px}main{padding:6px 16px 110px}h1{margin-left:0;font-size:22px}#q{width:100%;order:9}.grid{--cw:140px!important;gap:16px 12px}#new{right:16px;bottom:16px}}
+</style></head><body>
+<header>
+ <div class="logo"><svg width="30" height="30" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1c1916"/><path d="M47 22A18 18 0 1 0 50 34H35" fill="none" stroke="#ffd27a" stroke-width="7" stroke-linecap="round"/><rect x="29" y="28" width="11" height="11" transform="rotate(45 34.5 33.5)" fill="#ff3b6b"/></svg>G<i>Editor</i></div>
+ <h1>Projects</h1>
+ <span class="sp"></span>
+ <input id="q" placeholder="Search projects…  (/)">
+ <div class="pill">
+  <button class="ib" id="sort" title="Order of the cards">Newest first</button>
+  <button class="ib" id="view" title="Big cards or a list">▦ Cards</button>
+  <button class="ib" id="size" title="Card size">Bigger</button>
+ </div>
+ <div class="pill"><button class="ib" id="devices" title="Open GEditor on your Mac or iPhone (same Wi-Fi)">📱 Other devices</button></div>
+</header>
+<main>
+ <div class="chips" id="kits"></div>
+ <div id="list"><p class="hint">Finding your projects…</p></div>
+</main>
+<button id="new" title="New project (Alt+N)"><b>＋</b> New project</button>
+
+<div id="dlg"><div class="box">
+ <div class="step on" id="s1">
+  <h2 class="dh">New project</h2><div class="hint">Pick the video to edit. From this PC, your Mac or your iPhone.</div>
+  <div id="drop"><b>Drop a video here</b><span class="hint">or click to pick one (.mov, .mp4)</span></div>
+  <input type="file" id="file" accept="video/*,.mov,.mp4,.m4v,.mkv,.webm" hidden>
+  <div id="inboxw"><div class="hint" style="margin-top:6px">Or one from the Inbox folder:</div><div class="inbox" id="inbox"></div></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-close>Cancel</button></div>
+ </div>
+ <div class="step" id="s2">
+  <h2 class="dh">How should it start?</h2>
+  <div class="picked"><span id="pname"></span><button class="btn" id="back" style="padding:3px 10px">Change</button></div>
+  <label class="f">Shape</label>
+  <div class="opts" id="aspect">
+   <button class="opt on" data-v="9:16"><b><span class="shape" style="width:11px;height:19px"></span>9:16 tall</b><span>Reels, Shorts, TikTok</span></button>
+   <button class="opt" data-v="16:9"><b><span class="shape" style="width:22px;height:12px"></span>16:9 wide</b><span>YouTube</span></button>
+  </div>
+  <label class="f">Start with</label>
+  <div class="opts" id="mode">
+   <button class="opt on" data-v="auto"><b>✨ Auto Edit</b><span>Your cuts + zooms + captions made for you (like IMG_9658). About 3-10 min.</span></button>
+   <button class="opt" data-v="plain"><b>🎞 Plain</b><span>The whole video as one clip. You cut it. Auto Edit any clip later.</span></button>
+  </div>
+  <div id="aopts">
+   <label class="f">What Auto Edit does <span class="hint">(each one can be switched on or off later in the editor too)</span></label>
+   <label class="tick"><input type="checkbox" data-o="cuts" checked><span><b>Cut the pauses</b>Silent gaps and breaths between your sentences go.</span></label>
+   <label class="tick"><input type="checkbox" data-o="zooms" checked><span><b>Zoom in and out</b>Punch-ins and slow pushes on your face. Off = every clip wide; you can still zoom one clip by hand.</span></label>
+   <label class="tick"><input type="checkbox" data-o="stammers"><span><b>Cut repeated words</b>When you restart a sentence, the first try goes. Slower: it listens to every word first (+5-10 min).</span></label>
+   <label class="tick"><input type="checkbox" data-o="captions" checked><span><b>Captions</b>Words on screen from your voice (keeps coming while you edit).</span></label>
+   <label class="tick"><input type="checkbox" data-o="eyelock"><span><b>Eye-Lock</b>Your eyes stay at the same spot on the screen the whole video.</span></label>
+  </div>
+  <label class="f" for="pnm">Project name</label><input class="txt" id="pnm" maxlength="50">
+  <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Cancel</button><button class="btn pri" id="go">Create project</button></div>
+ </div>
+ <div class="step" id="s3">
+  <h2 class="dh" id="s3h">Making your project</h2>
+  <div class="bar"><i id="pb"></i></div><div class="hint" id="pm">Starting…</div>
+  <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" id="hide3">Keep working, open when ready</button></div>
+ </div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (p, o) => (await fetch(p, o)).json();
+const post = (p, b) => api(p, { method: 'POST', body: JSON.stringify(b || {}) });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const toast = (m, ms = 2600) => { const e = $('#toast'); e.textContent = m; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', ms); };
+const store = (k, v) => { try { if (v === undefined) return localStorage.getItem('gh_' + k); localStorage.setItem('gh_' + k, v); } catch (e) { return null; } };
+const ago = s => { if (!s) return ''; const m = (Date.now() / 1000 - s) / 60; return m < 2 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(s * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+const mmss = s => { s = Math.round(s || 0); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+let ALL = [], OPEN = {}, kit = store('kit') || '', sortBy = store('sort') || 'new', view = store('view') || 'cards', big = store('big') === '1', LAN = '';
+
+/* ---------- cards ---------- */
+async function openReel(r) { await post('/api/open', { kit: r.kit, reel: r.reel }); location.href = '/'; }
+function card(r) {
+  const d = document.createElement('div'); d.className = 'card'; d.tabIndex = 0; d.title = `${r.kitTitle} · ${r.reel}`;
+  const isOpen = r.kit === OPEN.kit && r.reel === OPEN.reel;
+  const bits = [r.edited ? ago(r.edited) : r.made ? 'made ' + ago(r.made) : 'not edited yet'];
+  if (r.mb) bits.push(r.mb + ' MB'); if (r.dur) bits.push(mmss(r.dur));
+  d.innerHTML = `${isOpen ? '<span class="badge">open now</span>' : ''}<span class="kit">${esc(r.mine ? 'My video' : r.kitTitle)}</span>
+    <div class="pic" ${r.cover ? `style="background-image:url('/api/cover?kit=${encodeURIComponent(r.kit)}&reel=${encodeURIComponent(r.reel)}')"` : ''}>${r.cover ? '' : esc(r.kitTitle)}</div>
+    <div class="meta"><b>${esc(r.reel)}</b><span>${esc(bits.join(' · '))}</span>${view === 'list' ? `<span>${esc(r.kitTitle)}</span>` : ''}</div>`;
+  d.onclick = () => { d.style.opacity = .5; openReel(r); };
+  d.onkeydown = e => { if (e.key === 'Enter') openReel(r); if (e.key === 'Delete' && r.mine) act(r, 'delete'); if (e.key === 'F2' && r.mine) act(r, 'rename'); };
+  d.oncontextmenu = e => { e.preventDefault(); menu(e.clientX, e.clientY, r); };
+  return d;
+}
+function menu(x, y, r) {
+  closeMenu(); const m = document.createElement('div'); m.id = 'ctx';
+  const items = [['Open', () => openReel(r)], ['Open in a new tab', async () => { await post('/api/open', { kit: r.kit, reel: r.reel }); open('/', '_blank'); }]];
+  if (r.mine) items.push(['Rename…  (F2)', () => act(r, 'rename')], ['Make a copy', () => act(r, 'copy')], ['Delete (goes to the bin)', () => act(r, 'delete'), 'bad']);
+  else items.push(['Made by the ' + r.kitTitle + ': rename / delete it in its kit', null]);
+  items.forEach(([t, f, c]) => { const b = document.createElement('button'); b.textContent = t; if (c) b.className = c; if (!f) b.disabled = true; else b.onclick = () => { closeMenu(); f(); }; m.append(b); });
+  document.body.append(m); m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + 'px'; m.style.top = Math.min(y, innerHeight - m.offsetHeight - 8) + 'px';
+}
+const closeMenu = () => { const m = $('#ctx'); if (m) m.remove(); };
+addEventListener('pointerdown', e => { if (!e.target.closest('#ctx')) closeMenu(); });
+async function act(r, a) {
+  if (a === 'rename') { const to = (prompt('New name for "' + r.reel + '":', r.reel) || '').trim(); if (!to || to === r.reel) return; const x = await post('/api/project', { act: 'rename', reel: r.reel, to }); if (x.error) return toast(x.error); toast('Renamed to ' + x.reel); }
+  if (a === 'copy') { const x = await post('/api/project', { act: 'copy', reel: r.reel }); if (x.error) return toast(x.error); toast('Copy made: ' + x.reel); }
+  if (a === 'delete') { if (!confirm('Delete "' + r.reel + '"? It goes to the GEditor bin (projects/_bin), so it can be brought back. Your original video file is not touched.')) return; const x = await post('/api/project', { act: 'delete', reel: r.reel }); if (x.error) return toast(x.error); toast('Moved to the bin'); }
+  load();
+}
+function show() {
+  const q = $('#q').value.trim().toLowerCase(), L = $('#list'); L.innerHTML = ''; L.className = view === 'list' ? 'list' : '';
+  document.documentElement.style.setProperty('--cw', big ? '260px' : '190px');
+  let rows = ALL.filter(r => (!kit || r.kit === kit) && (!q || (r.reel + ' ' + r.kitTitle).toLowerCase().includes(q)));
+  const key = r => Math.max(r.edited || 0, r.made || 0);
+  rows = rows.slice().sort(sortBy === 'name' ? (a, b) => a.reel.localeCompare(b.reel) : sortBy === 'old' ? (a, b) => key(a) - key(b) : (a, b) => key(b) - key(a));
+  const sec = (title, list) => { if (!list.length) return; const h = document.createElement('h2'); h.textContent = title; const g = document.createElement('div'); g.className = 'grid'; list.forEach(r => g.append(card(r))); L.append(h, g); };
+  if (sortBy === 'new') { sec('Your projects', rows.filter(r => r.edited || r.mine)); sec('Reels from your kits, not edited yet', rows.filter(r => !r.edited && !r.mine)); }
+  else sec(sortBy === 'name' ? 'A to Z' : 'Oldest first', rows);
+  if (!rows.length) L.innerHTML = q ? '<p class="hint">No project matches "' + esc(q) + '".</p>' : '<p class="hint">No projects yet. Press <b>＋ New project</b>.</p>';
+  $('#sort').textContent = { new: 'Newest first', old: 'Oldest first', name: 'A to Z' }[sortBy];
+  $('#view').textContent = view === 'list' ? '☰ List' : '▦ Cards'; $('#size').textContent = big ? 'Smaller' : 'Bigger'; $('#size').style.display = view === 'list' ? 'none' : '';
+}
+function chips() {
+  const kits = [...new Map(ALL.map(r => [r.kit, r.mine ? 'My videos' : r.kitTitle])).entries()];
+  const K = $('#kits'); K.innerHTML = '';
+  [['', 'Everything'], ...kits].forEach(([k, t]) => { const b = document.createElement('button'); b.textContent = t + (k ? ` (${ALL.filter(r => r.kit === k).length})` : ''); b.className = k === kit ? 'on' : ''; b.onclick = () => { kit = k; store('kit', k); chips(); show(); }; K.append(b); });
+}
+async function load() { const d = await api('/api/allreels'); ALL = d.reels; OPEN = d.open; LAN = d.lan; if (kit && !ALL.some(r => r.kit === kit)) kit = ''; chips(); show(); }
+$('#q').oninput = show;
+$('#sort').onclick = () => { sortBy = { new: 'old', old: 'name', name: 'new' }[sortBy]; store('sort', sortBy); show(); };
+$('#view').onclick = () => { view = view === 'list' ? 'cards' : 'list'; store('view', view); show(); };
+$('#size').onclick = () => { big = !big; store('big', big ? '1' : '0'); show(); };
+$('#devices').onclick = () => { try { navigator.clipboard.writeText(LAN + '/home'); } catch (e) {} toast('On your Mac or iPhone (same Wi-Fi) open ' + LAN + '/home  (copied)', 8000); };
+
+/* ---------- New project ---------- */
+let SRC = null, FILE = null, MODE = 'auto', ASPECT = '9:16';
+const step = n => { ['s1', 's2', 's3'].forEach((s, i) => $('#' + s).classList.toggle('on', i === n - 1)); };
+async function newProject() {
+  $('#dlg').classList.add('on'); step(1); SRC = null; FILE = null;
+  const I = $('#inbox'); I.innerHTML = '<div class="hint">Looking…</div>';
+  try { const l = await api('/api/take/inbox'); I.innerHTML = ''; if (!l.length) $('#inboxw').style.display = 'none';
+    l.forEach(f => { const b = document.createElement('button'); b.innerHTML = `<span>${esc(f.name)}</span><span class="hint">${f.mb} MB</span>`; b.onclick = () => picked({ path: f.path, name: f.name }); I.append(b); }); } catch (e) { I.innerHTML = ''; }
+}
+function picked(x) {
+  SRC = x.path || null; FILE = x.file || null;
+  $('#pname').textContent = x.name + (FILE ? ` · ${(FILE.size / 1e6).toFixed(0)} MB` : '');
+  $('#pnm').value = x.name.replace(/\.[a-z0-9]+$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 50);
+  step(2); $('#go').focus();
+}
+const closeDlg = () => { $('#dlg').classList.remove('on'); };
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeDlg);
+$('#dlg').onclick = e => { if (e.target.id === 'dlg' && !$('#s3').classList.contains('on')) closeDlg(); };
+$('#back').onclick = () => step(1);
+$('#new').onclick = newProject;
+const drop = $('#drop');
+drop.onclick = () => $('#file').click();
+$('#file').onchange = e => { const f = e.target.files[0]; if (f) picked({ file: f, name: f.name }); e.target.value = ''; };
+['dragenter', 'dragover'].forEach(v => drop.addEventListener(v, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(v => drop.addEventListener(v, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = [...e.dataTransfer.files].find(f => /video|\.mov$|\.mp4$|\.m4v$|\.mkv$|\.webm$/i.test(f.type + f.name)); if (f) picked({ file: f, name: f.name }); else toast('That is not a video file'); });
+// a video dropped anywhere on the page starts a New project too
+addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+addEventListener('drop', e => { if (e.target.closest('#drop')) return; e.preventDefault(); const f = [...e.dataTransfer.files].find(f => /video|\.mov$|\.mp4$/i.test(f.type + f.name)); if (f) { newProject().then(() => picked({ file: f, name: f.name })); } });
+const optGroup = (id, set) => document.querySelectorAll('#' + id + ' .opt').forEach(b => b.onclick = () => { document.querySelectorAll('#' + id + ' .opt').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset.v); });
+optGroup('aspect', v => ASPECT = v); optGroup('mode', v => { MODE = v; $('#aopts').style.display = v === 'auto' ? '' : 'none'; });
+const aopts = () => Object.fromEntries([...document.querySelectorAll('#aopts [data-o]')].map(x => [x.dataset.o, x.checked]));
+function upload(file) {
+  return new Promise((ok, bad) => {
+    const x = new XMLHttpRequest(); x.open('POST', '/api/take/upload?name=' + encodeURIComponent(file.name));
+    x.upload.onprogress = e => { if (e.lengthComputable) { const p = e.loaded / e.total; $('#pb').style.width = (p * 30) + '%'; $('#pm').textContent = `Copying your video to the PC: ${Math.round(p * 100)}% (${(e.loaded / 1e6).toFixed(0)} of ${(e.total / 1e6).toFixed(0)} MB)`; } };
+    x.onload = () => { try { const j = JSON.parse(x.responseText); j.error ? bad(j.error) : ok(j.path); } catch (e) { bad('the upload failed'); } };
+    x.onerror = () => bad('the connection to the PC dropped'); x.send(file);
+  });
+}
+let goOn = true;
+$('#go').onclick = async () => {
+  const nm = $('#pnm').value.trim(); step(3); goOn = true; $('#s3h').textContent = 'Making ' + (nm || 'your project');
+  try {
+    let path = SRC; if (FILE) path = await upload(FILE);
+    $('#pm').textContent = 'Starting…';
+    const r = await post('/api/take/new', { path, aspect: ASPECT, mode: MODE, name: nm, opts: aopts() });
+    if (r.error) throw r.error;
+    watch(r.reel);
+  } catch (e) { $('#pm').textContent = 'Could not make it: ' + e; $('#pb').style.width = '0'; }
+};
+async function watch(reel) {
+  const j = await api('/api/take/job'); const base = FILE ? 30 : 0;
+  $('#pb').style.width = (base + (100 - base) * j.pct / 100) + '%'; $('#pm').textContent = j.msg || '…';
+  if (j.state === 'error') { $('#pm').textContent = 'Stopped: ' + j.msg; return; }
+  // Auto Edit: the editor opens as soon as the clips exist (captions keep coming while he edits); Plain: when the preview copy is ready
+  const ready = j.state === 'done' || (j.mode === 'auto' && j.pct >= 70);
+  if (ready && goOn) { location.href = '/?kit=take&reel=' + encodeURIComponent(reel); return; }
+  if (ready && !goOn) { toast('"' + reel + '" is ready', 6000); load(); return; }
+  setTimeout(() => watch(reel), 1200);
+}
+$('#hide3').onclick = () => { goOn = false; closeDlg(); toast('It keeps going. The card shows up when it is ready.', 5000); };
+
+/* ---------- keys ---------- */
+addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.key === '/' ) { e.preventDefault(); $('#q').focus(); }
+  if ((e.altKey && e.key.toLowerCase() === 'n')) { e.preventDefault(); newProject(); }
+  if (e.key === 'Escape') { closeMenu(); if (!$('#s3').classList.contains('on')) closeDlg(); }
+});
+(async () => { await load(); try { const j = await api('/api/take/job'); if (j.state === 'running') { $('#dlg').classList.add('on'); step(3); $('#s3h').textContent = 'Making ' + j.take; goOn = false; watch(j.take); } } catch (e) {} })();
+if (new URLSearchParams(location.search).has('new')) newProject();
+</script>
+<script src="/edit/share_ui.js"></script><script>GShare.make(b => { const d = document.getElementById("devices"); d.replaceWith(b); });</script></body></html>

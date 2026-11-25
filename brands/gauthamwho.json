@@ -1,0 +1,27 @@
+{
+ "id": "gauthamwho",
+ "name": "GauthamWho",
+ "why": "LEDGER L481: his pick = GauthamWho only; a brand changes captions + text look only. Values copied from Common/brands/gauthamwho/theme.ts (his own 9-poster style sheet): heavy UPPERCASE Inter 900, tracking -0.025em, white captions with yellow accent words; blue #0B45E6, near-black #0B0B0C, yellow #FFD400.",
+ "fontsCss": "https://fonts.googleapis.com/css2?family=Inter:wght@600;800;900&family=Playfair+Display:ital,wght@1,700&display=block",
+ "looks": {
+  "signal": {
+   "name": "Signal Blue",
+   "caption": { "font": "Inter", "weight": 900, "upper": true, "track": -0.025, "color": "#FFFFFF", "stress": "#FFD400", "shadow": "0 4px 14px rgba(11,11,12,.6), 0 1px 2px rgba(11,11,12,.7)" },
+   "text": { "font": "Inter", "weight": 900, "color": "#FFFFFF", "bg": "#0B45E6" },
+   "card": { "bg": "#FFFFFF", "ink": "#0B0B0C", "pin": "#0B45E6" }
+  },
+  "paper": {
+   "name": "Grey Paper",
+   "caption": { "font": "Inter", "weight": 900, "upper": true, "track": -0.025, "color": "#0B0B0C", "stress": "#0B45E6", "shadow": "0 2px 10px rgba(255,255,255,.55)" },
+   "text": { "font": "Inter", "weight": 900, "color": "#FFFFFF", "bg": "#0B45E6" },
+   "card": { "bg": "#FFFFFF", "ink": "#0B0B0C", "pin": "#0B45E6" }
+  },
+  "mono": {
+   "name": "Blue on Black",
+   "caption": { "font": "Inter", "weight": 900, "upper": true, "track": -0.025, "color": "#FFFFFF", "stress": "#5B8BFF", "shadow": "0 4px 14px rgba(0,0,0,.7)" },
+   "text": { "font": "Inter", "weight": 900, "color": "#FFFFFF", "bg": "#0B0B0C" },
+   "card": { "bg": "#FFFFFF", "ink": "#0B0B0C", "pin": "#0B45E6" }
+  }
+ },
+ "aside": { "font": "Playfair Display", "style": "italic", "weight": 700 }
+}
